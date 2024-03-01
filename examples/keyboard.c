@@ -43,6 +43,24 @@ struct hid_descriptor {
 	struct hid_class_descriptor desc[1];
 } __attribute__ ((packed));
 
+//josh+
+struct u3v_device_info_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDescriptorSubType;
+	__le32	bGenCPVersion;
+	__le32	bU3VVersion;
+	__u8  iDeviceGUID;
+	__u8  iVendorName; 
+	__u8  iModelName;
+	__u8  iFamilyName;
+	__u8  iDeviceVersion;
+	__u8  iManufactureerInfo;
+	__u8  iSerialNumber;
+	__u8  iUserDefineName;
+	__u8  bmSpeedSupport;
+} __attribute__ ((packed));
+//josh+
 /*----------------------------------------------------------------------*/
 
 #define UDC_NAME_LENGTH_MAX 128
@@ -453,14 +471,17 @@ void log_event(struct usb_raw_event *event) {
 #define USB_VENDOR	0x046d
 #define USB_PRODUCT	0xc312 
 
-#define STRING_ID_MANUFACTURER	0
-#define STRING_ID_PRODUCT	1
-#define STRING_ID_SERIAL	2
-#define STRING_ID_CONFIG	3
-#define STRING_ID_INTERFACE	4
+#define STRING_ID_MANUFACTURER	1	//josh+
+#define STRING_ID_PRODUCT	2
+#define STRING_ID_SERIAL	3
+#define STRING_ID_CONFIG	4
+#define STRING_ID_INTERFACE	5
+#define STRING_ID_IAD		6	//josh+
+#define STRING_ID_GUID		7	//josh+
 
 #define EP_MAX_PACKET_CONTROL	64
 #define EP_MAX_PACKET_INT	8
+#define EP_MAX_PACKET_BULK	512	//josh+
 
 // Assigned dynamically.
 #define EP_NUM_INT_IN	0x0
@@ -469,12 +490,12 @@ struct usb_device_descriptor usb_device = {
 	.bLength =		USB_DT_DEVICE_SIZE,
 	.bDescriptorType =	USB_DT_DEVICE,
 	.bcdUSB =		__constant_cpu_to_le16(BCD_USB),
-	.bDeviceClass =		0,
-	.bDeviceSubClass =	0,
-	.bDeviceProtocol =	0,
+	.bDeviceClass =		0xEF,	//josh+
+	.bDeviceSubClass =	0x02,	//josh+
+	.bDeviceProtocol =	0x01,	//josh+
 	.bMaxPacketSize0 =	EP_MAX_PACKET_CONTROL,
-	.idVendor =		__constant_cpu_to_le16(USB_VENDOR),
-	.idProduct =		__constant_cpu_to_le16(USB_PRODUCT),
+	.idVendor =		__constant_cpu_to_le16(0x1772),
+	.idProduct =		__constant_cpu_to_le16(0x0002),
 	.bcdDevice =		0,
 	.iManufacturer =	STRING_ID_MANUFACTURER,
 	.iProduct =		STRING_ID_PRODUCT,
@@ -486,37 +507,70 @@ struct usb_qualifier_descriptor usb_qualifier = {
 	.bLength =		sizeof(struct usb_qualifier_descriptor),
 	.bDescriptorType =	USB_DT_DEVICE_QUALIFIER,
 	.bcdUSB =		__constant_cpu_to_le16(BCD_USB),
-	.bDeviceClass =		0,
-	.bDeviceSubClass =	0,
-	.bDeviceProtocol =	0,
+	.bDeviceClass =		0xEF,	//josh+
+	.bDeviceSubClass =	0x02,	//josh+
+	.bDeviceProtocol =	0xF1,	//josh+
 	.bMaxPacketSize0 =	EP_MAX_PACKET_CONTROL,
 	.bNumConfigurations =	1,
 	.bRESERVED =		0,
 };
 
+//josh+m
 struct usb_config_descriptor usb_config = {
-	.bLength =		USB_DT_CONFIG_SIZE,
-	.bDescriptorType =	USB_DT_CONFIG,
+	.bLength =		USB_DT_CONFIG_SIZE,	//9, josh+
+	.bDescriptorType =	USB_DT_CONFIG,	//2, josh+
 	.wTotalLength =		0,  // computed later
-	.bNumInterfaces =	1,
+	.bNumInterfaces =	3,	//3, DCI, EI, SI, josh+
 	.bConfigurationValue =	1,
 	.iConfiguration = 	STRING_ID_CONFIG,
 	.bmAttributes =		USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 	.bMaxPower =		0x32,
 };
+//josh+m
 
-struct usb_interface_descriptor usb_interface = {
+//josh+
+struct usb_interface_assoc_descriptor usb_interface_association = {
+	.bLength = 8,
+	.bDescriptorType = USB_DT_INTERFACE_ASSOCIATION,
+	.bFirstInterface = 0,
+	.bInterfaceCount = 3,
+	.bFunctionClass = USB_CLASS_MISC,	//0xEF
+	.bFunctionSubClass = 0x05,
+	.bFunctionProtocol = 0, 
+	.iFunction = STRING_ID_IAD,
+};
+//josh+
+struct usb_interface_descriptor usb_interface_control = {
 	.bLength =		USB_DT_INTERFACE_SIZE,
 	.bDescriptorType =	USB_DT_INTERFACE,
 	.bInterfaceNumber =	0,
 	.bAlternateSetting =	0,
-	.bNumEndpoints =	1,
-	.bInterfaceClass =	USB_CLASS_HID,
-	.bInterfaceSubClass =	1,
-	.bInterfaceProtocol =	1,
+	.bNumEndpoints =	2,	//DCI, EP1 IN/OUT, josh+
+	.bInterfaceClass =	USB_CLASS_MISC,	//0xEF josh+
+	.bInterfaceSubClass =	0x05,	//josh
+	.bInterfaceProtocol =	0,
 	.iInterface =		STRING_ID_INTERFACE,
 };
 
+//josh+
+struct u3v_device_info_descriptor u3v_device_info = {
+	.bLength = 0x14,
+	.bDescriptorType = 0x24,
+	.bDescriptorSubType = 1,
+	.bGenCPVersion= __constant_cpu_to_le32(0x00010003),
+	.bU3VVersion = __constant_cpu_to_le32(0x00010002),
+	.iDeviceGUID = 7,
+	.iVendorName = 1, 
+	.iModelName = 1,
+	.iFamilyName = 1,
+	.iDeviceVersion = 1,
+	.iManufactureerInfo = 1,
+	.iSerialNumber = 1,
+	.iUserDefineName = 1,
+	.bmSpeedSupport = 4,
+};
+//josh+
+/*
 struct usb_endpoint_descriptor usb_endpoint = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
@@ -525,6 +579,68 @@ struct usb_endpoint_descriptor usb_endpoint = {
 	.wMaxPacketSize =	EP_MAX_PACKET_INT,
 	.bInterval =		5,
 };
+*/
+//josh+
+struct usb_endpoint_descriptor usb_endpoint_1_in = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,	//7
+	.bDescriptorType =	USB_DT_ENDPOINT,
+	.bEndpointAddress =	USB_DIR_IN | 0x01,
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	EP_MAX_PACKET_BULK,
+	.bInterval =		1,
+};
+
+struct usb_endpoint_descriptor usb_endpoint_1_out = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,	//7
+	.bDescriptorType =	USB_DT_ENDPOINT,
+	.bEndpointAddress =	USB_DIR_OUT | 0x01,
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	EP_MAX_PACKET_BULK,
+	.bInterval =		1,
+};
+
+struct usb_interface_descriptor usb_interface_event = {
+	.bLength =		USB_DT_INTERFACE_SIZE,	//9
+	.bDescriptorType =	USB_DT_INTERFACE,
+	.bInterfaceNumber =	1,
+	.bAlternateSetting =	0,
+	.bNumEndpoints =	1,	//EI, EP2 IN
+	.bInterfaceClass =	USB_CLASS_MISC,	//0xEF
+	.bInterfaceSubClass =	0x05,
+	.bInterfaceProtocol =	1,
+	.iInterface =		STRING_ID_INTERFACE,
+};
+
+struct usb_endpoint_descriptor usb_endpoint_2_in = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,	//7	
+	.bDescriptorType =	USB_DT_ENDPOINT,
+	.bEndpointAddress =	USB_DIR_IN | 0x02,
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	EP_MAX_PACKET_BULK,
+	.bInterval =		1,
+};
+
+struct usb_interface_descriptor usb_interface_stream = {
+	.bLength =		USB_DT_INTERFACE_SIZE,	//9
+	.bDescriptorType =	USB_DT_INTERFACE,
+	.bInterfaceNumber =	2,
+	.bAlternateSetting =	0,
+	.bNumEndpoints =	1,	//SI, EP3 IN
+	.bInterfaceClass =	USB_CLASS_MISC,	//0xEF
+	.bInterfaceSubClass =	0x05,	//josh
+	.bInterfaceProtocol =	2,
+	.iInterface =		STRING_ID_INTERFACE,
+};
+
+struct usb_endpoint_descriptor usb_endpoint_3_in = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,	//7
+	.bDescriptorType =	USB_DT_ENDPOINT,
+	.bEndpointAddress =	USB_DIR_IN | 0x03,
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	EP_MAX_PACKET_BULK,
+	.bInterval =		1,
+};
+//josh+
 
 char usb_hid_report[] = {
 	0x05, 0x01,                    // Usage Page (Generic Desktop)        0
@@ -586,24 +702,75 @@ int build_config(char *data, int length) {
 	length -= sizeof(usb_config);
 	total_length += sizeof(usb_config);
 
-	assert(length >= sizeof(usb_interface));
-	memcpy(data, &usb_interface, sizeof(usb_interface));
-	data += sizeof(usb_interface);
-	length -= sizeof(usb_interface);
-	total_length += sizeof(usb_interface);
+//josh+
+	assert(length >= sizeof(usb_interface_association));
+	memcpy(data, &usb_interface_association, sizeof(usb_interface_association));
+	data += sizeof(usb_interface_association);
+	length -= sizeof(usb_interface_association);
+	total_length += sizeof(usb_interface_association);
+//josh+
 
+//josh+m
+	assert(length >= sizeof(usb_interface_control));	
+	memcpy(data, &usb_interface_control, sizeof(usb_interface_control));
+	data += sizeof(usb_interface_control);
+	length -= sizeof(usb_interface_control);
+	total_length += sizeof(usb_interface_control);
+//josh+m
+
+//josh+
+	assert(length >= sizeof(u3v_device_info));
+	memcpy(data, &u3v_device_info, sizeof(u3v_device_info));
+	data += sizeof(u3v_device_info);
+	length -= sizeof(u3v_device_info);
+	total_length += sizeof(u3v_device_info);
+
+	assert(length >= USB_DT_ENDPOINT_SIZE);
+	memcpy(data, &usb_endpoint_1_in, USB_DT_ENDPOINT_SIZE);
+	data += USB_DT_ENDPOINT_SIZE;
+	length -= USB_DT_ENDPOINT_SIZE;
+	total_length += USB_DT_ENDPOINT_SIZE;
+
+	assert(length >= USB_DT_ENDPOINT_SIZE);
+	memcpy(data, &usb_endpoint_1_out, USB_DT_ENDPOINT_SIZE);
+	data += USB_DT_ENDPOINT_SIZE;
+	length -= USB_DT_ENDPOINT_SIZE;
+	total_length += USB_DT_ENDPOINT_SIZE;
+//josh+
+
+/* josh+
 	assert(length >= sizeof(usb_hid));
 	memcpy(data, &usb_hid, sizeof(usb_hid));
 	data += sizeof(usb_hid);
 	length -= sizeof(usb_hid);
 	total_length += sizeof(usb_hid);
+*/ //josh+
+
+//josh+
+	assert(length >= sizeof(usb_interface_event));	
+	memcpy(data, &usb_interface_event, sizeof(usb_interface_event));
+	data += sizeof(usb_interface_event);
+	length -= sizeof(usb_interface_event);
+	total_length += sizeof(usb_interface_event);
 
 	assert(length >= USB_DT_ENDPOINT_SIZE);
-	memcpy(data, &usb_endpoint, USB_DT_ENDPOINT_SIZE);
+	memcpy(data, &usb_endpoint_2_in, USB_DT_ENDPOINT_SIZE);
 	data += USB_DT_ENDPOINT_SIZE;
 	length -= USB_DT_ENDPOINT_SIZE;
 	total_length += USB_DT_ENDPOINT_SIZE;
 
+	assert(length >= sizeof(usb_interface_stream));	
+	memcpy(data, &usb_interface_stream, sizeof(usb_interface_stream));
+	data += sizeof(usb_interface_stream);
+	length -= sizeof(usb_interface_stream);
+	total_length += sizeof(usb_interface_stream);
+
+	assert(length >= USB_DT_ENDPOINT_SIZE);
+	memcpy(data, &usb_endpoint_3_in, USB_DT_ENDPOINT_SIZE);
+	data += USB_DT_ENDPOINT_SIZE;
+	length -= USB_DT_ENDPOINT_SIZE;
+	total_length += USB_DT_ENDPOINT_SIZE;
+//josh+
 	config->wTotalLength = __cpu_to_le16(total_length);
 	printf("config->wTotalLength: %d\n", total_length);
 
@@ -663,6 +830,7 @@ void process_eps_info(int fd) {
 		printf("  max_streams: %u\n", info.eps[i].limits.max_streams);
 	}
 
+/* josh+
 	for (int i = 0; i < num; i++) {
 		if (assign_ep_address(&info.eps[i], &usb_endpoint))
 			continue;
@@ -671,6 +839,8 @@ void process_eps_info(int fd) {
 	int ep_int_in_addr = usb_endpoint_num(&usb_endpoint);
 	assert(ep_int_in_addr != 0);
 	printf("ep_int_in: addr = %u\n", ep_int_in_addr);
+*/	//josh+
+
 }
 
 /*----------------------------------------------------------------------*/
@@ -759,16 +929,49 @@ bool ep0_request(int fd, struct usb_raw_control_event *event,
 						sizeof(io->data));
 				return true;
 			case USB_DT_STRING:
-				io->data[0] = 4;
-				io->data[1] = USB_DT_STRING;
+//josh+m
 				if ((event->ctrl.wValue & 0xff) == 0) {
+					io->data[0] = 4;
+					io->data[1] = USB_DT_STRING;
 					io->data[2] = 0x09;
 					io->data[3] = 0x04;
+					io->inner.length = 4;
+				} else if((event->ctrl.wValue & 0xff) == 7) {
+					io->data[0] = 0x1A;
+					io->data[1] = USB_DT_STRING;
+					io->data[2] = '1';
+					io->data[3] = 0;
+					io->data[4] = '7';
+					io->data[5] = 0;
+					io->data[6] = '7';
+					io->data[7] = 0;
+					io->data[8] = '2';
+					io->data[9] = 0;
+					io->data[10] = '1';
+					io->data[11] = 0;
+					io->data[12] = '2';
+					io->data[13] = 0;
+					io->data[14] = '3';
+					io->data[15] = 0;
+					io->data[16] = '4';
+					io->data[17] = 0;
+					io->data[18] = '5';
+					io->data[19] = 0;
+					io->data[20] = '6';
+					io->data[21] = 0;
+					io->data[22] = '7';
+					io->data[23] = 0;
+					io->data[24] = '8';
+					io->data[25] = 0;
+					io->inner.length = 0x1A;
 				} else {
+					io->data[0] = 4;
+					io->data[1] = USB_DT_STRING;
 					io->data[2] = 'x';
 					io->data[3] = 0x00;
+					io->inner.length = 4;
 				}
-				io->inner.length = 4;
+//josh+m
 				return true;
 			case HID_DT_REPORT:
 				memcpy(&io->data[0], &usb_hid_report[0],
@@ -781,6 +984,7 @@ bool ep0_request(int fd, struct usb_raw_control_event *event,
 			}
 			break;
 		case USB_REQ_SET_CONFIGURATION:
+/* josh+
 			ep_int_in = usb_raw_ep_enable(fd, &usb_endpoint);
 			printf("ep0: ep_int_in enabled: %d\n", ep_int_in);
 			int rv = pthread_create(&ep_int_in_thread, 0,
@@ -791,12 +995,23 @@ bool ep0_request(int fd, struct usb_raw_control_event *event,
 			}
 			ep_int_in_thread_spawned = true;
 			printf("ep0: spawned ep_int_in thread\n");
+*/ //josh+
+//josh+
+			ep_int_in = usb_raw_ep_enable(fd, &usb_endpoint_1_in);
+			printf("ep0: usb_endpoint_1_in enabled: %d\n", ep_int_in);
+			ep_int_in = usb_raw_ep_enable(fd, &usb_endpoint_1_out);
+			printf("ep0: usb_endpoint_1_in enabled: %d\n", ep_int_in);
+			ep_int_in = usb_raw_ep_enable(fd, &usb_endpoint_2_in);
+			printf("ep0: usb_endpoint_1_in enabled: %d\n", ep_int_in);
+			ep_int_in = usb_raw_ep_enable(fd, &usb_endpoint_3_in);
+			printf("ep0: usb_endpoint_1_in enabled: %d\n", ep_int_in);
+//josh+
 			usb_raw_vbus_draw(fd, usb_config.bMaxPower);
 			usb_raw_configure(fd);
 			io->inner.length = 0;
 			return true;
 		case USB_REQ_GET_INTERFACE:
-			io->data[0] = usb_interface.bAlternateSetting;
+			io->data[0] = usb_interface_control.bAlternateSetting;
 			io->inner.length = 1;
 			return true;
 		default:

@@ -29,6 +29,7 @@
 
 #include "raw_gadget.h"
 
+#define DEBUG //josh+
 #define	DRIVER_DESC "USB Raw Gadget"
 #define DRIVER_NAME "raw-gadget"
 
